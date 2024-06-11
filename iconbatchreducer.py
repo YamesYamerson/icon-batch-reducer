@@ -1,5 +1,6 @@
 import os
 from tkinter import Tk, filedialog, Label, Button, messagebox, Frame, Checkbutton, IntVar
+from tkinter import ttk
 from PIL import Image, ImageOps, ImageChops
 
 class ImageProcessorApp:
@@ -8,8 +9,8 @@ class ImageProcessorApp:
         self.root.title("Image Processor")
 
         # Set the window size
-        window_width = 600
-        window_height = 400
+        window_width = 700
+        window_height = 500
 
         # Get the screen dimensions
         screen_width = root.winfo_screenwidth()
@@ -22,25 +23,35 @@ class ImageProcessorApp:
         # Set the position and size of the window
         root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
 
+        # Apply a modern theme
+        style = ttk.Style()
+        style.theme_use("clam")  # Using 'clam' theme for a modern look
+
         # Create a frame for better aesthetics
-        frame = Frame(root, padx=20, pady=20)
+        frame = ttk.Frame(root, padding="20 20 20 20")
         frame.pack(fill='both', expand=True)
 
-        self.label = Label(frame, text="Select a folder containing images", font=("Helvetica", 14))
-        self.label.pack(pady=10)
+        self.label = ttk.Label(frame, text="Select a folder containing images", font=("Helvetica", 16))
+        self.label.pack(pady=20)
 
-        self.select_folder_button = Button(frame, text="Select Source Folder", command=self.select_source_folder, font=("Helvetica", 12), bg="lightblue")
+        self.select_folder_button = ttk.Button(frame, text="Select Source Folder", command=self.select_source_folder, style="TButton")
         self.select_folder_button.pack(pady=10)
 
-        self.output_folder_button = Button(frame, text="Select Output Folder", command=self.select_output_folder, font=("Helvetica", 12), bg="lightblue")
+        self.source_folder_label = ttk.Label(frame, text="Source folder: None selected", font=("Helvetica", 12))
+        self.source_folder_label.pack(pady=10)
+
+        self.output_folder_button = ttk.Button(frame, text="Select Output Folder", command=self.select_output_folder, style="TButton")
         self.output_folder_button.pack(pady=10)
 
+        self.output_folder_label = ttk.Label(frame, text="Output folder: None selected", font=("Helvetica", 12))
+        self.output_folder_label.pack(pady=10)
+
         self.save_to_source_var = IntVar()
-        self.save_to_source_check = Checkbutton(frame, text="Save small icons to the source folder", variable=self.save_to_source_var, font=("Helvetica", 12))
+        self.save_to_source_check = ttk.Checkbutton(frame, text="Save small icons to the source folder", variable=self.save_to_source_var)
         self.save_to_source_check.pack(pady=10)
 
-        self.process_button = Button(frame, text="Process Images", command=self.process_images, font=("Helvetica", 12), bg="lightgreen")
-        self.process_button.pack(pady=10)
+        self.process_button = ttk.Button(frame, text="Process Images", command=self.process_images, style="TButton")
+        self.process_button.pack(pady=20)
 
         self.image_files = []
         self.source_folder = ''
@@ -50,6 +61,7 @@ class ImageProcessorApp:
         folder_path = filedialog.askdirectory()
         if folder_path:
             self.source_folder = folder_path
+            self.source_folder_label.config(text=f"Source folder: {folder_path}")
             self.populate_file_list(folder_path)
             messagebox.showinfo("Info", f"Source folder selected: {folder_path}")
 
@@ -57,6 +69,7 @@ class ImageProcessorApp:
         folder_path = filedialog.askdirectory()
         if folder_path:
             self.output_folder = folder_path
+            self.output_folder_label.config(text=f"Output folder: {folder_path}")
             messagebox.showinfo("Info", f"Output folder selected: {folder_path}")
 
     def populate_file_list(self, folder_path):
