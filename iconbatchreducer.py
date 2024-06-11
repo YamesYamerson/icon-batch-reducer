@@ -1,16 +1,16 @@
 import os
-from tkinter import Tk, filedialog, messagebox, Frame, IntVar, StringVar, Canvas, Toplevel, Scrollbar, Checkbutton
+from tkinter import Tk, filedialog, messagebox, Frame, IntVar, StringVar, Canvas, Toplevel, Scrollbar, Checkbutton, Label, Entry
 from tkinter import ttk
 from PIL import Image, ImageOps, ImageChops, ImageTk
 
 class ImageProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Image Processor")
+        self.root.title("Batch Image Processor")
 
         # Set the window size
         window_width = 700
-        window_height = 500
+        window_height = 700
 
         # Get the screen dimensions
         screen_width = root.winfo_screenwidth()
@@ -31,8 +31,17 @@ class ImageProcessorApp:
         frame = ttk.Frame(root, padding="20 20 20 20")
         frame.pack(fill='both', expand=True)
 
+        blurb = ("This application is designed for creating square aspect ratio icons with transparent backgrounds.\n\n"
+                 "1. Select Image Folder\n"
+                 "2. Select Output Folder\n"
+                 "3. Enter Dimensions\n"
+                "4. Enter Padding\n"
+                "5. Process Images")
+        self.blurb_label = ttk.Label(frame, text=blurb, font=("Helvetica", 12))
+        self.blurb_label.pack(pady=10)
+
         self.label = ttk.Label(frame, text="Select a folder containing images", font=("Helvetica", 16))
-        self.label.pack(pady=20)
+        self.label.pack(pady=10)
 
         self.select_folder_button = ttk.Button(frame, text="Select Source Folder", command=self.select_source_folder, style="TButton")
         self.select_folder_button.pack(pady=10)
@@ -51,6 +60,18 @@ class ImageProcessorApp:
         self.save_to_original_var = IntVar()
         self.save_to_original_check = Checkbutton(frame, text="Save files to their original directories", variable=self.save_to_original_var)
         self.save_to_original_check.pack(pady=10)
+
+        self.dimension_label = ttk.Label(frame, text="Enter the dimensions for rescale (width x height):", font=("Helvetica", 12))
+        self.dimension_label.pack(pady=10)
+        self.dimension_entry = Entry(frame)
+        self.dimension_entry.insert(0, "200x200")
+        self.dimension_entry.pack(pady=5)
+
+        self.padding_label = ttk.Label(frame, text="Enter the amount of padding to add:", font=("Helvetica", 12))
+        self.padding_label.pack(pady=10)
+        self.padding_entry = Entry(frame)
+        self.padding_entry.insert(0, "25")
+        self.padding_entry.pack(pady=5)
 
         self.process_button = ttk.Button(frame, text="Process Images", command=self.preview_images, style="TButton")
         self.process_button.pack(pady=20)
@@ -90,7 +111,7 @@ class ImageProcessorApp:
             messagebox.showwarning("Warning", "No images found in the selected folder.")
             print("Debug: No images found.")
 
-    def process_image(self, file_path):
+    def process_image(self, file_path, dimensions, padding):
         img = Image.open(file_path)
         img = img.convert("RGBA")
 
@@ -99,17 +120,18 @@ class ImageProcessorApp:
         if bbox:
             img = img.crop(bbox)
 
-        # Add a 25 pixel border with transparency around the main content
-        new_img = ImageOps.expand(img, border=25, fill=(255, 255, 255, 0))
+        # Add padding with transparency around the main content
+        new_img = ImageOps.expand(img, border=padding, fill=(255, 255, 255, 0))
 
-        # Resize the image to 200x200 while maintaining aspect ratio
-        new_img.thumbnail((200, 200), Image.LANCZOS)
+        # Resize the image to the specified dimensions while maintaining aspect ratio
+        width, height = map(int, dimensions.split('x'))
+        new_img.thumbnail((width, height), Image.LANCZOS)
 
-        # Create a new 200x200 image with a transparent background
-        final_img = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+        # Create a new image with the specified dimensions and a transparent background
+        final_img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
 
-        # Center the thumbnail on the 200x200 image
-        final_img.paste(new_img, ((200 - new_img.width) // 2, (200 - new_img.height) // 2))
+        # Center the thumbnail on the new image
+        final_img.paste(new_img, ((width - new_img.width) // 2, (height - new_img.height) // 2))
 
         return final_img
 
@@ -117,6 +139,9 @@ class ImageProcessorApp:
         if not self.image_files:
             messagebox.showerror("Error", "No images to process. Please select a source folder first.")
             return
+
+        dimensions = self.dimension_entry.get()
+        padding = int(self.padding_entry.get())
 
         preview_window = Toplevel(self.root)
         preview_window.title("Preview Processed Images")
@@ -160,7 +185,7 @@ class ImageProcessorApp:
             before_photo = ImageTk.PhotoImage(before_img)
             self.previews.append(before_photo)  # Store reference to prevent garbage collection
 
-            processed_img = self.process_image(file_path)
+            processed_img = self.process_image(file_path, dimensions, padding)
             processed_photo = ImageTk.PhotoImage(processed_img)
             self.previews.append(processed_photo)  # Store reference to prevent garbage collection
 
@@ -175,7 +200,7 @@ class ImageProcessorApp:
         scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
 
-        confirm_button = ttk.Button(preview_window, text="Confirm", command=lambda: self.process_images(confirm=True, preview_window=preview_window))
+        confirm_button = ttk.Button(preview_window, text="Confirm", command=lambda: self.process_images(confirm=True, preview_window=preview_window, dimensions=dimensions, padding=padding))
         confirm_button.pack(pady=20)
 
     def draw_grid(self, canvas, y_position, width, height):
@@ -189,7 +214,7 @@ class ImageProcessorApp:
         for y in range(y_position, y_position + height + 1, step):
             canvas.create_line(260, y, 260 + width, y, fill="#ccc")
 
-    def process_images(self, confirm=False, preview_window=None):
+    def process_images(self, confirm=False, preview_window=None, dimensions="200x200", padding=25):
         if confirm:
             if preview_window:
                 preview_window.destroy()
@@ -200,7 +225,7 @@ class ImageProcessorApp:
 
             for file_path in self.image_files:
                 try:
-                    final_img = self.process_image(file_path)
+                    final_img = self.process_image(file_path, dimensions, padding)
 
                     if self.save_to_original_var.get():
                         # Save the image to the original folder with "-sm" appended to the filename
