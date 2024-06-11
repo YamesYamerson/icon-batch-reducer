@@ -1,5 +1,5 @@
 import os
-from tkinter import Tk, filedialog, Label, Button, messagebox, Frame
+from tkinter import Tk, filedialog, Label, Button, messagebox, Frame, Checkbutton, IntVar
 from PIL import Image, ImageOps, ImageChops
 
 class ImageProcessorApp:
@@ -8,8 +8,8 @@ class ImageProcessorApp:
         self.root.title("Image Processor")
 
         # Set the window size
-        window_width = 500
-        window_height = 300
+        window_width = 600
+        window_height = 400
 
         # Get the screen dimensions
         screen_width = root.winfo_screenwidth()
@@ -29,18 +29,35 @@ class ImageProcessorApp:
         self.label = Label(frame, text="Select a folder containing images", font=("Helvetica", 14))
         self.label.pack(pady=10)
 
-        self.select_folder_button = Button(frame, text="Select Folder", command=self.select_folder, font=("Helvetica", 12), bg="lightblue")
+        self.select_folder_button = Button(frame, text="Select Source Folder", command=self.select_source_folder, font=("Helvetica", 12), bg="lightblue")
         self.select_folder_button.pack(pady=10)
+
+        self.output_folder_button = Button(frame, text="Select Output Folder", command=self.select_output_folder, font=("Helvetica", 12), bg="lightblue")
+        self.output_folder_button.pack(pady=10)
+
+        self.save_to_source_var = IntVar()
+        self.save_to_source_check = Checkbutton(frame, text="Save small icons to the source folder", variable=self.save_to_source_var, font=("Helvetica", 12))
+        self.save_to_source_check.pack(pady=10)
 
         self.process_button = Button(frame, text="Process Images", command=self.process_images, font=("Helvetica", 12), bg="lightgreen")
         self.process_button.pack(pady=10)
 
         self.image_files = []
+        self.source_folder = ''
+        self.output_folder = ''
 
-    def select_folder(self):
+    def select_source_folder(self):
         folder_path = filedialog.askdirectory()
         if folder_path:
+            self.source_folder = folder_path
             self.populate_file_list(folder_path)
+            messagebox.showinfo("Info", f"Source folder selected: {folder_path}")
+
+    def select_output_folder(self):
+        folder_path = filedialog.askdirectory()
+        if folder_path:
+            self.output_folder = folder_path
+            messagebox.showinfo("Info", f"Output folder selected: {folder_path}")
 
     def populate_file_list(self, folder_path):
         self.image_files = []
@@ -57,12 +74,11 @@ class ImageProcessorApp:
 
     def process_images(self):
         if not self.image_files:
-            messagebox.showerror("Error", "No images to process. Please select a folder first.")
+            messagebox.showerror("Error", "No images to process. Please select a source folder first.")
             return
 
-        output_folder = filedialog.askdirectory(title="Select Output Folder")
-        if not output_folder:
-            messagebox.showerror("Error", "No output folder selected.")
+        if not self.output_folder and not self.save_to_source_var.get():
+            messagebox.showerror("Error", "No output folder selected. Please select an output folder or choose to save small icons to the source folder.")
             return
 
         for file_path in self.image_files:
@@ -87,9 +103,17 @@ class ImageProcessorApp:
                 # Center the thumbnail on the 200x200 image
                 final_img.paste(new_img, ((200 - new_img.width) // 2, (200 - new_img.height) // 2))
 
-                # Save the image
-                output_path = os.path.join(output_folder, os.path.basename(file_path))
-                final_img.save(output_path, quality=100)
+                # Save the image to the output folder
+                if self.output_folder:
+                    output_path = os.path.join(self.output_folder, os.path.basename(file_path))
+                    final_img.save(output_path, quality=100)
+
+                # Save the image to the source folder with "-sm" appended to the filename
+                if self.save_to_source_var.get():
+                    base, ext = os.path.splitext(file_path)
+                    output_path_sm = base + "-sm" + ext
+                    final_img.save(output_path_sm, quality=100)
+
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to process {file_path}: {e}")
 
