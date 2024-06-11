@@ -1,5 +1,5 @@
 import os
-from tkinter import Tk, filedialog, messagebox, Frame, IntVar, StringVar, Canvas, Toplevel, Scrollbar
+from tkinter import Tk, filedialog, messagebox, Frame, IntVar, StringVar, Canvas, Toplevel, Scrollbar, Checkbutton
 from tkinter import ttk
 from PIL import Image, ImageOps, ImageChops, ImageTk
 
@@ -47,6 +47,10 @@ class ImageProcessorApp:
         self.output_folder_var = StringVar(value="Output folder: None selected")
         self.output_folder_label = ttk.Label(frame, textvariable=self.output_folder_var, font=("Helvetica", 12))
         self.output_folder_label.pack(pady=10)
+
+        self.save_to_original_var = IntVar()
+        self.save_to_original_check = Checkbutton(frame, text="Save files to their original directories", variable=self.save_to_original_var)
+        self.save_to_original_check.pack(pady=10)
 
         self.process_button = ttk.Button(frame, text="Process Images", command=self.preview_images, style="TButton")
         self.process_button.pack(pady=20)
@@ -190,17 +194,23 @@ class ImageProcessorApp:
             if preview_window:
                 preview_window.destroy()
 
-            if not self.output_folder:
-                messagebox.showerror("Error", "No output folder selected. Please select an output folder.")
+            if not self.output_folder and not self.save_to_original_var.get():
+                messagebox.showerror("Error", "No output folder selected. Please select an output folder or choose to save to original directories.")
                 return
 
             for file_path in self.image_files:
                 try:
                     final_img = self.process_image(file_path)
 
-                    # Save the image to the output folder with "-sm" appended to the filename
-                    base, ext = os.path.splitext(os.path.basename(file_path))
-                    output_path = os.path.join(self.output_folder, base + "-sm" + ext)
+                    if self.save_to_original_var.get():
+                        # Save the image to the original folder with "-sm" appended to the filename
+                        base, ext = os.path.splitext(file_path)
+                        output_path = base + "-sm" + ext
+                    else:
+                        # Save the image to the output folder with "-sm" appended to the filename
+                        base, ext = os.path.splitext(os.path.basename(file_path))
+                        output_path = os.path.join(self.output_folder, base + "-sm" + ext)
+
                     final_img.save(output_path, quality=100)
 
                 except Exception as e:
