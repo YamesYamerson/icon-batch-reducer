@@ -6,7 +6,7 @@ from PIL import Image, ImageOps, ImageChops, ImageTk
 class ImageProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Batch Image Processor")
+        self.root.title("Image Processor")
 
         # Set the window size
         window_width = 700
@@ -31,12 +31,8 @@ class ImageProcessorApp:
         frame = ttk.Frame(root, padding="20 20 20 20")
         frame.pack(fill='both', expand=True)
 
-        blurb = ("This application is designed for creating square aspect ratio icons with transparent backgrounds.\n\n"
-                 "1. Select Image Folder\n"
-                 "2. Select Output Folder\n"
-                 "3. Enter Dimensions\n"
-                "4. Enter Padding\n"
-                "5. Process Images")
+        blurb = ("This application is designed for creating square aspect ratio icons with transparent backgrounds.\n"
+                 "You can choose the dimensions of the rescale and the amount of padding to add to the images.")
         self.blurb_label = ttk.Label(frame, text=blurb, font=("Helvetica", 12))
         self.blurb_label.pack(pady=10)
 
@@ -80,6 +76,8 @@ class ImageProcessorApp:
         self.source_folder = ''
         self.output_folder = ''
         self.previews = []  # Store references to image previews to prevent garbage collection
+        self.altered_images = []
+        self.unaltered_images = []
 
     def select_source_folder(self):
         folder_path = filedialog.askdirectory()
@@ -115,6 +113,11 @@ class ImageProcessorApp:
         img = Image.open(file_path)
         img = img.convert("RGBA")
 
+        # Check if the image size is already the selected dimensions or smaller
+        width, height = map(int, dimensions.split('x'))
+        if img.width <= width and img.height <= height:
+            return None  # No need to process this image
+
         # Crop the image to the bounding box of the non-transparent content
         bbox = ImageChops.difference(img, Image.new(img.mode, img.size)).getbbox()
         if bbox:
@@ -124,7 +127,6 @@ class ImageProcessorApp:
         new_img = ImageOps.expand(img, border=padding, fill=(255, 255, 255, 0))
 
         # Resize the image to the specified dimensions while maintaining aspect ratio
-        width, height = map(int, dimensions.split('x'))
         new_img.thumbnail((width, height), Image.LANCZOS)
 
         # Create a new image with the specified dimensions and a transparent background
@@ -186,16 +188,17 @@ class ImageProcessorApp:
             self.previews.append(before_photo)  # Store reference to prevent garbage collection
 
             processed_img = self.process_image(file_path, dimensions, padding)
-            processed_photo = ImageTk.PhotoImage(processed_img)
-            self.previews.append(processed_photo)  # Store reference to prevent garbage collection
+            if processed_img:
+                processed_photo = ImageTk.PhotoImage(processed_img)
+                self.previews.append(processed_photo)  # Store reference to prevent garbage collection
 
-            self.draw_grid(canvas, y_position, 200, 200)
+                self.draw_grid(canvas, y_position, 200, 200)
 
-            canvas.create_image(20, y_position, anchor='nw', image=before_photo)
-            canvas.create_text(230, y_position + 90, text="→", font=("Helvetica", 24))
-            canvas.create_image(260, y_position, anchor='nw', image=processed_photo)
+                canvas.create_image(20, y_position, anchor='nw', image=before_photo)
+                canvas.create_text(230, y_position + 90, text="→", font=("Helvetica", 24))
+                canvas.create_image(260, y_position, anchor='nw', image=processed_photo)
 
-            y_position += 220
+                y_position += 220
 
         scrollable_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
@@ -223,25 +226,45 @@ class ImageProcessorApp:
                 messagebox.showerror("Error", "No output folder selected. Please select an output folder or choose to save to original directories.")
                 return
 
+            self.altered_images = []
+            self.unaltered_images = []
+
             for file_path in self.image_files:
                 try:
                     final_img = self.process_image(file_path, dimensions, padding)
 
-                    if self.save_to_original_var.get():
-                        # Save the image to the original folder with "-sm" appended to the filename
-                        base, ext = os.path.splitext(file_path)
-                        output_path = base + "-sm" + ext
-                    else:
-                        # Save the image to the output folder with "-sm" appended to the filename
-                        base, ext = os.path.splitext(os.path.basename(file_path))
-                        output_path = os.path.join(self.output_folder, base + "-sm" + ext)
+                    if final_img:
+                        self.altered_images.append(file_path)
+                        if self.save_to_original_var.get():
+                            # Save the image to the original folder with "-sm" appended to the filename
+                            base, ext = os.path.splitext(file_path)
+                            output_path = base + "-sm" + ext
+                        else:
+                            # Save the image to the output folder with "-sm" appended to the filename
+                            base, ext = os.path.splitext(os.path.basename(file_path))
+                            output_path = os.path.join(self.output_folder, base + "-sm" + ext)
 
-                    final_img.save(output_path, quality=100)
+                        final_img.save(output_path, quality=100)
+                    else:
+                        self.unaltered_images.append(file_path)
 
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to process {file_path}: {e}")
 
-            messagebox.showinfo("Success", "Images have been processed and saved.")
+            self.show_results()
+
+    def show_results(self):
+        results_window = Toplevel(self.root)
+        results_window.title("Processing Results")
+
+        results_text = f"Altered Images ({len(self.altered_images)}):\n" + "\n".join(self.altered_images) + \
+                       f"\n\nUnaltered Images ({len(self.unaltered_images)}):\n" + "\n".join(self.unaltered_images)
+
+        results_label = Label(results_window, text=results_text, justify="left", padx=10, pady=10)
+        results_label.pack()
+
+        close_button = ttk.Button(results_window, text="Close", command=results_window.destroy)
+        close_button.pack(pady=10)
 
 if __name__ == "__main__":
     root = Tk()
